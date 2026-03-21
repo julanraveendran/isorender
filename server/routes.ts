@@ -4,12 +4,14 @@ import { storage } from "./storage";
 import multer from "multer";
 import { z } from "zod";
 import { Anthropic } from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import Stripe from "stripe";
 import express from "express";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const anthropic = new Anthropic(); // uses ANTHROPIC_API_KEY env var
+const openai = new OpenAI(); // uses OPENAI_API_KEY env var
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -396,6 +398,46 @@ Requirements:
 - If multiple floors, render them stacked vertically with slight separation so interiors are visible`;
 }
 
+// --- Image generation with OpenAI GPT-Image-1 via Responses API ---
+async function generateRenderImage(
+  prompt: string,
+  floorPlanBase64: string,
+  mimeType: string
+): Promise<string> {
+  // Use a chat model (gpt-4.1) with image_generation tool
+  // Pass the floor plan as input_image reference for accurate rendering
+  const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_image",
+            image_url: `data:${mimeType};base64,${floorPlanBase64}`,
+          },
+          {
+            type: "input_text",
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    tools: [{ type: "image_generation", quality: "medium", size: "1024x1024" }],
+  } as any);
+
+  // Extract the generated image from the response
+  const imageOutput = (response as any).output.find(
+    (o: any) => o.type === "image_generation_call"
+  );
+
+  if (!imageOutput || !imageOutput.result) {
+    throw new Error("No image generated — check OpenAI API response");
+  }
+
+  return imageOutput.result; // base64 string
+}
+
 // --- Two-step render pipeline ---
 async function processFloorPlan(renderId: number, imageBuffer: Buffer, mimeType: string) {
   try {
@@ -419,17 +461,11 @@ async function processFloorPlan(renderId: number, imageBuffer: Buffer, mimeType:
       status: "rendering",
     });
 
-    // Step 2: Generate image with analysis-informed prompt
-    console.log(`Render ${renderId}: Step 2 - Generating isometric render...`);
+    // Step 2: Generate image with OpenAI GPT-Image-1 (image-to-image)
+    console.log(`Render ${renderId}: Step 2 - Generating isometric render with GPT-Image-1...`);
     const prompt = buildRenderPrompt(analysis);
 
-    const { generate_image } = await import("../generate_image_node.js");
-    const renderImageBytes = await generate_image(prompt, {
-      aspect_ratio: "1:1",
-      image_bytes: imageBuffer,
-      image_media_type: mimeType,
-    });
-    const renderBase64 = Buffer.from(renderImageBytes).toString("base64");
+    const renderBase64 = await generateRenderImage(prompt, base64Image, mimeType);
     const renderDataUrl = `data:image/png;base64,${renderBase64}`;
 
     storage.updateRender(renderId, {
