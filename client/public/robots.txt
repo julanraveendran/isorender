@@ -1,0 +1,35 @@
+# IsoRender - robots.txt
+# Allow all search engines and AI crawlers
+
+User-agent: *
+Allow: /
+
+# OpenAI crawlers - Required for ChatGPT Search
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+# Bing - ChatGPT uses Bing's index
+User-agent: Bingbot
+Allow: /
+
+# Google
+User-agent: Googlebot
+Allow: /
+
+# Anthropic
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://isorender.com/sitemap.xml

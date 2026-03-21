@@ -183,7 +183,7 @@ export default function Landing() {
     try {
       await apiRequest("POST", "/api/waitlist", { email });
       setSubmitted(true);
-      toast({ title: "You're on the list", description: "We'll notify you when PlanVision launches." });
+      toast({ title: "You're on the list", description: "We'll notify you when IsoRender launches." });
     } catch {
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -198,7 +198,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo />
-            <span className="font-semibold text-lg tracking-tight" data-testid="text-brand">PlanVision</span>
+            <span className="font-semibold text-lg tracking-tight" data-testid="text-brand">IsoRender</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <button onClick={() => scrollTo("features")} className="hover:text-foreground transition-colors" data-testid="link-features">Features</button>
@@ -470,7 +470,7 @@ export default function Landing() {
                   <div className="w-2 h-2 rounded-full bg-red-400" />
                   <div className="w-2 h-2 rounded-full bg-yellow-400" />
                   <div className="w-2 h-2 rounded-full bg-green-400" />
-                  <span className="ml-2">planvision.io/generate</span>
+                  <span className="ml-2">isorender.com/generate</span>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 bg-muted rounded-md px-3 py-2 text-sm text-muted-foreground truncate">
@@ -706,7 +706,7 @@ export default function Landing() {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold tracking-tight mb-4">Ready to transform your listings?</h2>
           <p className="text-primary-foreground/70 text-lg mb-8">
-            Join hundreds of estate agents and architects already using PlanVision to create stunning 3D property visualisations.
+            Join hundreds of estate agents and architects already using IsoRender to create stunning 3D property visualisations.
           </p>
 
           <AnimatePresence mode="wait">
@@ -758,18 +758,15 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <Logo />
-            <span className="font-semibold tracking-tight">PlanVision</span>
+            <span className="font-semibold tracking-tight">IsoRender</span>
           </div>
           <div className="flex items-center gap-8 text-sm text-muted-foreground">
             <button onClick={() => scrollTo("features")} className="hover:text-foreground transition-colors">Features</button>
             <button onClick={() => scrollTo("pricing")} className="hover:text-foreground transition-colors">Pricing</button>
-            <a href="mailto:hello@planvision.io" className="hover:text-foreground transition-colors">Contact</a>
+            <a href="mailto:hello@isorender.com" className="hover:text-foreground transition-colors">Contact</a>
           </div>
           <div className="text-xs text-muted-foreground flex flex-col items-center md:items-end gap-1">
-            <span>© {new Date().getFullYear()} PlanVision</span>
-            <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-              Created with Perplexity Computer
-            </a>
+            <span>© {new Date().getFullYear()} IsoRender</span>
           </div>
         </div>
       </footer>
@@ -780,7 +777,7 @@ export default function Landing() {
 // SVG Logo
 function Logo() {
   return (
-    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-label="PlanVision logo">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-label="IsoRender logo">
       {/* Isometric cube mark */}
       <path d="M16 4L28 11V21L16 28L4 21V11L16 4Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
       <path d="M16 4L16 14L28 21" stroke="currentColor" strokeWidth="1.5" />

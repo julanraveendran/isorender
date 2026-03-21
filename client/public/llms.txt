@@ -1,0 +1,44 @@
+# IsoRender
+> AI-powered tool that converts 2D floor plans into stunning isometric 3D renders. Built for UK estate agents, architects, property developers, and letting agents. Works with Rightmove and Zoopla URLs.
+
+## Product
+- IsoRender transforms flat 2D floor plans into photorealistic isometric 3D renders using AI
+- Upload any floor plan image or paste a Rightmove/Zoopla property URL
+- Renders are delivered in seconds, not days
+- Pricing starts from £7 per render (GBP), with a free tier available
+
+## Key Pages
+- [Homepage](https://isorender.com)
+- [Try the Generator](https://isorender.com/#/generate)
+- [Isometric 3D Floor Plans](https://isorender.com/#/isometric-3d-floor-plans)
+- [For Estate Agents](https://isorender.com/#/3d-floor-plans-for-estate-agents)
+- [Isometric Floor Plan Generator](https://isorender.com/#/isometric-floor-plan-generator)
+- [Floor Plan Rendering UK](https://isorender.com/#/floor-plan-rendering-uk)
+- [Rightmove & Zoopla Integration](https://isorender.com/#/3d-floor-plans-rightmove-zoopla)
+- [For Property Developers](https://isorender.com/#/3d-floor-plans-property-developers)
+- [For Architects](https://isorender.com/#/3d-floor-plans-architects)
+- [For Letting Agents](https://isorender.com/#/3d-floor-plans-letting-agents)
+- [Free Floor Plan Tool](https://isorender.com/#/free-floor-plan-tool)
+- [Blog](https://isorender.com/#/blog)
+
+## Comparisons
+- [IsoRender vs iso3d](https://isorender.com/#/compare/isorender-vs-iso3d)
+- [IsoRender vs Matterport](https://isorender.com/#/compare/isorender-vs-matterport)
+
+## Pricing (GBP)
+- Free: 1 render per month, standard resolution
+- Pro: £7 per render, 4K resolution, priority processing
+- Agency: £49 per month, 10 renders included, bulk discounts, API access
+
+## Target Audience
+- UK estate agents listing on Rightmove, Zoopla, OnTheMarket
+- Property developers marketing off-plan developments
+- Architects presenting to clients
+- Letting agents creating rental listings
+- Interior designers visualising spaces
+
+## Technology
+- AI-powered analysis of 2D floor plans
+- Automatic room detection and measurement
+- Isometric 3D rendering with realistic textures
+- Compatible with Rightmove (900x900px optimal) and Zoopla image specifications

@@ -127,12 +127,12 @@ export default function Generator() {
             </Link>
             <div className="h-5 w-px bg-border" />
             <div className="flex items-center gap-2">
-              <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-label="PlanVision logo">
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-label="IsoRender logo">
                 <path d="M16 4L28 11V21L16 28L4 21V11L16 4Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
                 <path d="M16 4L16 14L28 21" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M16 14L4 21" stroke="currentColor" strokeWidth="1.5" />
               </svg>
-              <span className="font-semibold tracking-tight" data-testid="text-brand-gen">PlanVision</span>
+              <span className="font-semibold tracking-tight" data-testid="text-brand-gen">IsoRender</span>
             </div>
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function Generator() {
                         <Button size="sm" className="gap-1.5" data-testid="button-download" onClick={() => {
                           const link = document.createElement("a");
                           link.href = renderData.renderUrl!;
-                          link.download = "planvision-render.png";
+                          link.download = "isorender-render.png";
                           link.click();
                         }}>
                           <Download className="w-3.5 h-3.5" />
