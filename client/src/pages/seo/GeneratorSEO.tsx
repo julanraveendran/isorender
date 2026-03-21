@@ -75,7 +75,7 @@ export default function GeneratorSEO() {
     name: "IsoRender — Isometric Floor Plan Generator",
     description:
       "AI-powered isometric floor plan generator. Upload a 2D floor plan or paste a Rightmove/Zoopla URL to create stunning 3D renders in seconds.",
-    url: "https://isorender.com/#/isometric-floor-plan-generator",
+    url: "https://isorender.com/isometric-floor-plan-generator",
     applicationCategory: "DesignApplication",
     operatingSystem: "Web",
     offers: {

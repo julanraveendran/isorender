@@ -76,7 +76,7 @@ export default function Architects() {
     name: "3D Floor Plans for Architects — Client Presentations & Design Communication | IsoRender",
     description:
       "AI-powered isometric 3D floor plans for architects. Improve client presentations, support planning applications, and communicate design intent clearly. From £7 per render.",
-    url: "https://isorender.com/#/3d-floor-plans-architects",
+    url: "https://isorender.com/3d-floor-plans-architects",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

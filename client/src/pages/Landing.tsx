@@ -178,9 +178,8 @@ export default function Landing() {
 
   const handleBuyPlan = async (planId: string) => {
     try {
-      const apiBase = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
       const currentUrl = window.location.href.split('#')[0];
-      const res = await fetch(`${apiBase}/api/stripe/create-checkout`, {
+      const res = await fetch(`/api/stripe/create-checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

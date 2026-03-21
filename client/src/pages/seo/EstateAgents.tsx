@@ -75,7 +75,7 @@ export default function EstateAgents() {
     name: "3D Floor Plans for Estate Agents — Rightmove & Zoopla Ready | IsoRender",
     description:
       "AI-powered 3D floor plans designed for UK estate agents. Import directly from Rightmove and Zoopla. Boost listing engagement by up to 30%. From £7 per render.",
-    url: "https://isorender.com/#/3d-floor-plans-for-estate-agents",
+    url: "https://isorender.com/3d-floor-plans-for-estate-agents",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

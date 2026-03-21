@@ -72,7 +72,7 @@ export default function LettingAgents() {
     name: "3D Floor Plans for Letting Agents — Rental Property Marketing | IsoRender",
     description:
       "Isometric 3D floor plans for letting agents. Reduce wasted viewings, market HMO layouts clearly, and attract better tenant enquiries. From £7 per render.",
-    url: "https://isorender.com/#/3d-floor-plans-letting-agents",
+    url: "https://isorender.com/3d-floor-plans-letting-agents",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

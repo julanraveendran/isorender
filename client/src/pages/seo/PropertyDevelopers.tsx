@@ -75,7 +75,7 @@ export default function PropertyDevelopers() {
     name: "3D Floor Plans for Property Developers — Off-Plan Marketing | IsoRender",
     description:
       "Create 3D floor plans for off-plan property developments. Brochure-ready isometric renders from architect drawings. Bulk pricing from £49/month unlimited.",
-    url: "https://isorender.com/#/3d-floor-plans-property-developers",
+    url: "https://isorender.com/3d-floor-plans-property-developers",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

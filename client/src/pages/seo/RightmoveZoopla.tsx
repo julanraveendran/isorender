@@ -75,7 +75,7 @@ export default function RightmoveZoopla() {
     name: "How to Create 3D Floor Plans for Rightmove and Zoopla",
     description:
       "Step-by-step guide to creating isometric 3D floor plans from Rightmove and Zoopla listings using IsoRender's AI-powered generator.",
-    url: "https://isorender.com/#/3d-floor-plans-rightmove-zoopla",
+    url: "https://isorender.com/3d-floor-plans-rightmove-zoopla",
     step: [
       {
         "@type": "HowToStep",

@@ -35,8 +35,7 @@ export default function Generator() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("floorplan", file);
-      const apiBase = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
-      const res = await fetch(`${apiBase}/api/render/upload`, { method: "POST", body: formData });
+      const res = await fetch(`/api/render/upload`, { method: "POST", body: formData });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `${res.status}`);

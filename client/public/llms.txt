@@ -9,21 +9,21 @@
 
 ## Key Pages
 - [Homepage](https://isorender.com)
-- [Try the Generator](https://isorender.com/#/generate)
-- [Isometric 3D Floor Plans](https://isorender.com/#/isometric-3d-floor-plans)
-- [For Estate Agents](https://isorender.com/#/3d-floor-plans-for-estate-agents)
-- [Isometric Floor Plan Generator](https://isorender.com/#/isometric-floor-plan-generator)
-- [Floor Plan Rendering UK](https://isorender.com/#/floor-plan-rendering-uk)
-- [Rightmove & Zoopla Integration](https://isorender.com/#/3d-floor-plans-rightmove-zoopla)
-- [For Property Developers](https://isorender.com/#/3d-floor-plans-property-developers)
-- [For Architects](https://isorender.com/#/3d-floor-plans-architects)
-- [For Letting Agents](https://isorender.com/#/3d-floor-plans-letting-agents)
-- [Free Floor Plan Tool](https://isorender.com/#/free-floor-plan-tool)
-- [Blog](https://isorender.com/#/blog)
+- [Try the Generator](https://isorender.com/generate)
+- [Isometric 3D Floor Plans](https://isorender.com/isometric-3d-floor-plans)
+- [For Estate Agents](https://isorender.com/3d-floor-plans-for-estate-agents)
+- [Isometric Floor Plan Generator](https://isorender.com/isometric-floor-plan-generator)
+- [Floor Plan Rendering UK](https://isorender.com/floor-plan-rendering-uk)
+- [Rightmove & Zoopla Integration](https://isorender.com/3d-floor-plans-rightmove-zoopla)
+- [For Property Developers](https://isorender.com/3d-floor-plans-property-developers)
+- [For Architects](https://isorender.com/3d-floor-plans-architects)
+- [For Letting Agents](https://isorender.com/3d-floor-plans-letting-agents)
+- [Free Floor Plan Tool](https://isorender.com/free-floor-plan-tool)
+- [Blog](https://isorender.com/blog)
 
 ## Comparisons
-- [IsoRender vs iso3d](https://isorender.com/#/compare/isorender-vs-iso3d)
-- [IsoRender vs Matterport](https://isorender.com/#/compare/isorender-vs-matterport)
+- [IsoRender vs iso3d](https://isorender.com/compare/isorender-vs-iso3d)
+- [IsoRender vs Matterport](https://isorender.com/compare/isorender-vs-matterport)
 
 ## Pricing (GBP)
 - Free: 1 render per month, standard resolution

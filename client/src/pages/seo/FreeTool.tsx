@@ -72,7 +72,7 @@ export default function FreeTool() {
     name: "IsoRender — Free Floor Plan Tool",
     description:
       "Free isometric 3D floor plan generator. One render per month, no credit card required. Upload a 2D floor plan or paste a Rightmove/Zoopla URL.",
-    url: "https://isorender.com/#/free-floor-plan-tool",
+    url: "https://isorender.com/free-floor-plan-tool",
     applicationCategory: "DesignApplication",
     operatingSystem: "Web",
     offers: {

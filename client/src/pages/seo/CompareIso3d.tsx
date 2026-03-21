@@ -65,7 +65,7 @@ export default function CompareIso3d() {
     name: "IsoRender vs iso3d — Feature Comparison | IsoRender",
     description:
       "Detailed comparison of IsoRender and iso3d. Feature-by-feature analysis including pricing, UK portal integration, rendering styles, and output specifications.",
-    url: "https://isorender.com/#/compare/isorender-vs-iso3d",
+    url: "https://isorender.com/compare/isorender-vs-iso3d",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

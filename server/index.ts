@@ -1,10 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+// CORS for production (Vercel frontend -> Railway backend)
+app.use(cors({
+  origin: ['https://isorender.com', 'https://www.isorender.com', 'http://localhost:5000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'stripe-signature'],
+  credentials: true
+}));
 
 declare module "http" {
   interface IncomingMessage {

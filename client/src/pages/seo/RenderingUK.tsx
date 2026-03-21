@@ -65,7 +65,7 @@ export default function RenderingUK() {
     name: "IsoRender — Floor Plan Rendering Service UK",
     description:
       "UK-based floor plan rendering service. AI-powered isometric 3D renders from £7. GBP pricing, portal-ready output, sub-60-second turnaround.",
-    url: "https://isorender.com/#/floor-plan-rendering-uk",
+    url: "https://isorender.com/floor-plan-rendering-uk",
     provider: {
       "@type": "Organization",
       name: "IsoRender",

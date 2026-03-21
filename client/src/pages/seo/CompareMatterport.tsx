@@ -65,7 +65,7 @@ export default function CompareMatterport() {
     name: "IsoRender vs Matterport — Different Approaches to Property Visualisation",
     description:
       "Comparing IsoRender (AI-powered isometric floor plan rendering) with Matterport (3D camera scanning). Cost, speed, use cases, and when to use each tool.",
-    url: "https://isorender.com/#/compare/isorender-vs-matterport",
+    url: "https://isorender.com/compare/isorender-vs-matterport",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

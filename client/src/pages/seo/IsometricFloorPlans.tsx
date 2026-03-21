@@ -65,7 +65,7 @@ export default function IsometricFloorPlans() {
     name: "Isometric 3D Floor Plans — AI-Powered Rendering | IsoRender",
     description:
       "Create stunning isometric 3D floor plans from any 2D floor plan. AI-powered rendering for UK estate agents, architects, and property developers. From £7 per render.",
-    url: "https://isorender.com/#/isometric-3d-floor-plans",
+    url: "https://isorender.com/isometric-3d-floor-plans",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({

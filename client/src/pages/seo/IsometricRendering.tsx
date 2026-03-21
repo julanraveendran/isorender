@@ -72,7 +72,7 @@ export default function IsometricRendering() {
     headline: "Isometric Floorplan Rendering — Process, Styles & Customisation",
     description:
       "Technical guide to isometric floor plan rendering. Covers the AI rendering process, available styles, customisation options, and output specifications.",
-    url: "https://isorender.com/#/isometric-floorplan-rendering",
+    url: "https://isorender.com/isometric-floorplan-rendering",
     mainEntity: {
       "@type": "FAQPage",
       mainEntity: faqs.map((faq) => ({
