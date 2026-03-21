@@ -390,46 +390,77 @@ function buildRenderPrompt(analysis: Record<string, any>): string {
   // The render instructions from Claude's analysis (most important part)
   const renderInstr = analysis.renderInstructions || "";
 
-  return `Create a photorealistic top-down isometric 3D architectural cutaway render of this exact floor plan. Bird's-eye view at 30-degree isometric angle, miniature architectural maquette/diorama style.
+  return `IMPORTANT: You are looking at a 2D floor plan image. Your task is to transform this EXACT floor plan into a photorealistic 3D isometric cutaway render. You MUST faithfully reproduce EVERY room shown in the floor plan — same rooms, same positions, same proportional sizes. Do NOT invent rooms or rearrange the layout.
 
 This is a ${numFloors}-floor ${propertyType}.
+
 ${renderInstr}
 
-PRECISE ROOM LAYOUT:${floorLayouts}
-${outdoorDesc ? `\nOUTDOOR AREAS:${outdoorDesc}` : ""}
+EVERY ROOM ON EVERY FLOOR (you must include ALL of these):${floorLayouts}
+${outdoorDesc ? `\nOUTDOOR AREAS (include these):${outdoorDesc}` : ""}
 
-CRITICAL ACCURACY REQUIREMENTS:
-1. The room layout MUST match the floor plan exactly — same rooms, same positions, same proportional sizes
-2. Rooms that are labeled as adjacent MUST share walls in the render
-3. The overall floor shape MUST be correct (rectangular, L-shaped, etc.)
-4. Larger rooms must appear proportionally larger than smaller rooms
-5. Stairs must be in the correct position
-6. Garden/outdoor areas must be in the correct position (front or rear)
+MANDATORY RULES:
+1. EVERY room listed above MUST appear in the render at the correct position
+2. Room sizes MUST be proportionally correct (a 5m room must look bigger than a 3m room)
+3. Rooms sharing walls (adjacentTo) MUST be next to each other
+4. ${numFloors > 1 ? `Show all ${numFloors} floors stacked vertically with slight separation between them, like an exploded architectural diagram. EACH floor must be visible with all its rooms.` : "Show the single floor with all rooms visible."}
+5. The staircase MUST appear on each floor connecting them
+6. Include appropriate furniture: beds in bedrooms, sofa in lounge, kitchen appliances in kitchen, sink in bathrooms, car in garage
+7. Bathrooms/en-suites/shower rooms must show toilet, sink, and shower/bath fixtures
+8. The garage (if present) should show a car or empty space with concrete floor
 
-STYLE:
-- Remove all text labels and measurements
-- Warm hardwood floors, white/cream walls, soft ambient lighting
-- Appropriate furniture in each room (bed in bedroom, sofa in living room, dining table, kitchen appliances)
-- Plants, artwork, decorative details for realism
-- Soft shadows, clean architectural visualization
-- Professional quality, crisp edges
-- If multiple floors, show them stacked with slight vertical separation`;
+STYLE: Bird's-eye 30-degree isometric angle, miniature diorama/dollhouse aesthetic, warm hardwood floors, white walls, soft lighting, no text labels, professional architectural visualization quality.`;
+}
+
+// --- Resize image to reduce base64 size for API requests ---
+async function resizeImageForApi(imageBuffer: Buffer, maxDim: number = 512): Promise<{ base64: string; mime: string }> {
+  // Use sharp if available, otherwise just compress via re-encoding
+  // For simplicity, we'll use a canvas-free approach: just return a smaller version
+  // by converting to JPEG with lower quality
+  try {
+    const sharp = (await import('sharp')).default;
+    const resized = await sharp(imageBuffer)
+      .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 60 })
+      .toBuffer();
+    return { base64: resized.toString('base64'), mime: 'image/jpeg' };
+  } catch {
+    // If sharp not available, return original but warn about size
+    console.warn('sharp not available, using original image size');
+    return { base64: imageBuffer.toString('base64'), mime: 'image/jpeg' };
+  }
 }
 
 // --- Image generation with OpenAI GPT-Image-1 via Responses API ---
 async function generateRenderImage(
   prompt: string,
   floorPlanBase64: string,
-  mimeType: string
+  mimeType: string,
+  imageBuffer: Buffer
 ): Promise<string> {
-  // Use gpt-4.1 with image_generation tool
-  // The prompt already contains the full spatial analysis from Claude,
-  // so we rely on the text description for accuracy rather than the raw floor plan image
-  // (sending large base64 images can exceed request limits)
+  // Resize the floor plan image to reduce base64 size (avoids 422 errors)
+  const resized = await resizeImageForApi(imageBuffer, 512);
+
+  // Send BOTH the floor plan image (as visual reference) AND the detailed text prompt
+  // This way the model can SEE the actual layout while following the precise instructions
   const response = await openai.responses.create({
     model: "gpt-4.1",
-    input: prompt,
-    tools: [{ type: "image_generation", quality: "medium", size: "1024x1024" }],
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_image",
+            image_url: `data:${resized.mime};base64,${resized.base64}`,
+          },
+          {
+            type: "input_text",
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    tools: [{ type: "image_generation", quality: "high", size: "1024x1024" }],
   } as any);
 
   // Extract the generated image from the response
@@ -438,8 +469,7 @@ async function generateRenderImage(
   );
 
   if (!imageOutput || !imageOutput.result) {
-    // Log the full response for debugging
-    console.error("OpenAI response output:", JSON.stringify((response as any).output?.map((o: any) => ({ type: o.type, text: o.text?.substring(0, 200) }))));
+    console.error("OpenAI response output:", JSON.stringify((response as any).output?.map((o: any) => ({ type: o.type, text: o.text?.substring(0, 300) }))));
     throw new Error("No image generated — check OpenAI API response");
   }
 
@@ -473,7 +503,7 @@ async function processFloorPlan(renderId: number, imageBuffer: Buffer, mimeType:
     console.log(`Render ${renderId}: Step 2 - Generating isometric render with GPT-Image-1...`);
     const prompt = buildRenderPrompt(analysis);
 
-    const renderBase64 = await generateRenderImage(prompt, base64Image, mimeType);
+    const renderBase64 = await generateRenderImage(prompt, base64Image, mimeType, imageBuffer);
     const renderDataUrl = `data:image/png;base64,${renderBase64}`;
 
     storage.updateRender(renderId, {
