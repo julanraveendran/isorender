@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { Anthropic } from "@anthropic-ai/sdk";
+// Image generation handled via generate_image_node.js -> Python SDK
 import { z } from "zod";
 import fs from "fs";
 import path from "path";
@@ -94,51 +94,46 @@ export function registerRoutes(server: Server, app: Express) {
 
 async function processFloorPlan(renderId: number, imageBuffer: Buffer, mimeType: string) {
   try {
-    const client = new Anthropic();
     const base64Image = imageBuffer.toString("base64");
+    const floorPlanDataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    // Step 1: Analyze the floor plan with Claude
-    const analysis = await client.messages.create({
-      model: "claude_sonnet_4_6",
-      max_tokens: 2000,
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mimeType as any, data: base64Image }
-          },
-          {
-            type: "text",
-            text: `Analyze this floor plan image in detail. Extract:
-1. Room layout (names, dimensions, positions)
-2. Number of floors
-3. Total area if shown
-4. Key features (kitchen, bathrooms, bedrooms, etc.)
-5. A detailed text description of the spatial layout suitable for generating a 3D isometric render.
-
-Provide the description as a detailed prompt for generating a photorealistic isometric 3D cutaway visualization of this floor plan. Include specific furniture, materials, lighting, and color details for each room. Make it extremely detailed.`
-          }
-        ]
-      }]
+    // Update immediately with floor plan so user sees it
+    storage.updateRender(renderId, {
+      floorPlanUrl: floorPlanDataUrl,
+      status: "processing",
     });
 
-    const analysisText = analysis.content[0].type === "text" ? analysis.content[0].text : "";
-
-    // Step 2: Generate the isometric 3D render
+    // Generate the isometric 3D render using image-to-image
     const { generate_image } = await import("../generate_image_node.js");
-    const prompt = `Create a stunning photorealistic isometric 3D cutaway view of an apartment/house based on this floor plan description. Bird's eye view at a 30-degree isometric angle. Show all rooms with realistic furniture, hardwood/tile floors, white walls, warm lighting from windows. Include: ${analysisText.substring(0, 800)}. Style: architectural visualization, miniature diorama feel, soft shadows, warm color palette, high detail. No text or labels.`;
 
-    const renderImageBytes = await generate_image(prompt, { aspect_ratio: "4:3" });
+    const prompt = `Transform this 2D architectural floor plan into a stunning photorealistic top-down isometric 3D cutaway render. Create a beautiful miniature architectural maquette/diorama viewed from a bird's eye 30-degree isometric angle.
+
+Requirements:
+- Accurately recreate the exact room layout, walls, doors, and windows shown in the floor plan
+- Remove all text labels and measurements from the image
+- Add realistic, tasteful modern furniture in every room (beds, sofas, dining tables, kitchen appliances, bathroom fixtures)
+- Use photorealistic materials: warm hardwood floors, white/cream walls, marble countertops, plush rugs
+- Include warm ambient lighting from windows, ceiling lights casting soft shadows
+- Add small decorative details: plants, books, artwork, throw pillows, kitchen accessories
+- Clean architectural visualization style with soft global illumination
+- Miniature diorama/dollhouse aesthetic with crisp edges and subtle depth of field
+- Professional quality, high resolution, polished output
+- If multiple floors shown, render them stacked or side by side in the same isometric view`;
+
+    const renderImageBytes = await generate_image(prompt, {
+      aspect_ratio: "1:1",
+      image_bytes: imageBuffer,
+      image_media_type: mimeType,
+    });
     const renderBase64 = Buffer.from(renderImageBytes).toString("base64");
     const renderDataUrl = `data:image/png;base64,${renderBase64}`;
 
     storage.updateRender(renderId, {
       renderUrl: renderDataUrl,
-      floorPlanUrl: `data:${mimeType};base64,${base64Image}`,
-      propertyDetails: JSON.stringify({ analysis: analysisText.substring(0, 500) }),
+      floorPlanUrl: floorPlanDataUrl,
       status: "completed",
     });
+    console.log(`Render ${renderId} completed successfully`);
   } catch (e: any) {
     console.error("Render failed:", e);
     storage.updateRender(renderId, { status: "failed" });
