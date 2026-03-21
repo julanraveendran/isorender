@@ -246,57 +246,75 @@ async function analyzeFloorPlan(base64Image: string, mimeType: string): Promise<
   analysis: Record<string, any>;
   description: string;
 }> {
-  const analysisPrompt = `You are an expert architectural floor plan analyzer. Analyze this floor plan image in extreme detail and extract ALL information.
+  const analysisPrompt = `You are an expert architectural floor plan analyst. Your task is to produce an EXTREMELY precise spatial analysis that will be used to generate a 3D isometric render. ACCURACY IS CRITICAL — every room must be in the correct position relative to every other room.
 
-You MUST output valid JSON with the following structure:
+Analyze this floor plan and output valid JSON:
+
 {
-  "propertyName": "name/address if visible, or null",
+  "propertyName": "address/name if visible or null",
+  "totalArea": { "sqm": number, "sqft": number },
   "numberOfFloors": number,
-  "totalFloorArea": { "sqm": number or null, "sqft": number or null },
-  "propertyType": "detached/semi-detached/terraced/flat/bungalow/etc",
-  "overallShape": "rectangular/L-shaped/T-shaped/U-shaped/irregular",
-  "compassOrientation": "which side is north, if shown, or null",
+  "propertyType": "terraced/semi-detached/detached/flat/etc",
+  "compass": "which direction is north (top/right/etc) or null",
   "floors": [
     {
-      "name": "Ground Floor / First Floor / etc",
-      "shape": "rectangular/L-shaped/etc",
+      "name": "Ground Floor",
+      "overallWidthM": number,
+      "overallDepthM": number,
+      "shape": "rectangular/L-shaped/T-shaped",
+      "shapeDescription": "Describe the exact outline shape. E.g. 'Main rectangle 10m wide x 8m deep with a rear-left extension 4m wide x 3m deep'",
       "rooms": [
         {
-          "name": "room name exactly as labeled",
-          "dimensions": { "metric": "3.5m x 4.2m", "imperial": "11'6\" x 13'9\"" },
-          "position": "front-left/rear-center/etc relative to the floor",
-          "relativePosition": "north of kitchen, east of hallway, etc",
-          "features": ["bay window", "fireplace", "en-suite", "built-in wardrobe", etc],
-          "doors": ["door to hallway on north wall", "door to garden on south wall"],
-          "windows": ["window on east wall", "bay window on south wall"]
+          "name": "exact name from floor plan label",
+          "widthM": number,
+          "depthM": number,
+          "widthFt": "imperial width",
+          "depthFt": "imperial depth",
+          "gridPosition": {
+            "description": "PRECISE position within the floor. Use compass directions and fractions. E.g. 'occupies the entire front-left quadrant' or 'rear-center, behind the kitchen'",
+            "xFromLeft": "percentage from left wall (0%=left edge, 100%=right edge) where room CENTER is",
+            "yFromFront": "percentage from front wall (0%=front, 100%=rear) where room CENTER is",
+            "widthPercent": "room width as percentage of total floor width",
+            "depthPercent": "room depth as percentage of total floor depth"
+          },
+          "adjacentTo": ["list of rooms that share a wall with this room"],
+          "doorConnections": ["room names this room has a door to"],
+          "windowWalls": ["north", "south", "east", "west" — which walls have windows"],
+          "features": ["bay window", "fireplace", etc]
         }
       ],
-      "spatialFlow": "Detailed description: You enter through the front door into the hallway. On your immediate left is the living room. Straight ahead the hallway leads to the kitchen at the rear...",
-      "stairs": { "position": "where stairs are located", "direction": "going up to first floor / coming down from first floor" }
+      "hallway": {
+        "description": "Describe the hallway/corridor path. E.g. 'Runs front-to-back along the right side, from entrance to rear'",
+        "position": "right-side / center / left-side / none"
+      },
+      "stairs": {
+        "position": "where stairs are (e.g. 'center-right, between hallway and kitchen')",
+        "direction": "up/down"
+      },
+      "walkthrough": "Write a precise walkthrough: 'Enter through the FRONT door into a hallway running along the RIGHT side. Immediately to the LEFT is the Reception Room (6.48m x 4.94m) which spans the full depth of the left portion. The hallway continues past the stairs on the RIGHT to the Kitchen at the REAR-CENTER...'"
     }
   ],
-  "entrancePosition": "front-center / side / rear",
-  "garden": { "front": "description or null", "rear": "description or null", "side": "description or null" },
-  "parking": "driveway/garage/none/etc",
-  "specialFeatures": ["conservatory", "bay windows", "loft conversion", etc],
-  "detailedSpatialDescription": "A comprehensive natural language description of the entire property layout, optimized for image generation. Describe the exact spatial relationships, flow between rooms, and positioning as if guiding someone through the property. Include every room, its size, what's adjacent to it, and the overall shape. This should be detailed enough that someone could recreate the floor plan from this description alone."
+  "outdoor": {
+    "frontGarden": { "exists": boolean, "widthM": number, "depthM": number, "description": "string" },
+    "rearGarden": { "exists": boolean, "widthM": number, "depthM": number, "description": "string" }
+  },
+  "renderInstructions": "Write a VERY detailed paragraph describing exactly how to render this property as a 3D isometric cutaway. Describe the EXACT layout as if you're describing a miniature model from above at a 30-degree angle. Be obsessively precise about which rooms are next to which, their proportional sizes, and the overall shape. Mention every room by name, its exact position, and what it contains. This paragraph alone should be enough to recreate the floor plan accurately."
 }
 
-Instructions:
-1. Read EVERY text label on the floor plan carefully
-2. Note EVERY dimension shown (convert between metric and imperial if only one is shown)
-3. Describe the EXACT spatial relationship between every room
-4. Describe the shape of each floor (rectangular, L-shaped, etc.)
-5. Note which side is north if a compass is shown
-6. Describe the entrance position and the flow through the entire property
-7. Be extremely precise about left/right/top/bottom positioning
-8. Include ALL rooms, even small ones like cupboards, utility rooms, WCs
+CRITICAL RULES:
+1. Read EVERY label and dimension on the floor plan. Do not guess or approximate.
+2. For gridPosition, think of the floor as a coordinate grid. Front=bottom of plan (where entrance is). Rear=top. Left and Right from the perspective of someone ENTERING the front door.
+3. Room proportions matter! If the Reception Room is 6.48m wide and the Kitchen is 5.91m wide, note they are NEARLY the same width.
+4. Note which rooms share walls (adjacentTo). This is critical for accurate placement.
+5. The renderInstructions field is the most important — it must be detailed enough that an artist could draw the floor plan from it alone.
+6. Include outdoor areas (gardens, driveways) with their exact dimensions.
+7. Note the EXACT position of stairs, hallways, and corridors.
 
-Output ONLY the JSON, no other text.`;
+Output ONLY valid JSON.`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+    max_tokens: 6000,
     messages: [{
       role: "user",
       content: [
@@ -341,61 +359,61 @@ function buildRenderPrompt(analysis: Record<string, any>): string {
   const floors = analysis.floors || [];
   const numFloors = analysis.numberOfFloors || floors.length || 1;
   const propertyType = analysis.propertyType || "residential property";
-  const overallShape = analysis.overallShape || "rectangular";
 
-  let floorDescriptions = "";
+  // Build precise room layout description per floor
+  let floorLayouts = "";
   for (const floor of floors) {
-    const roomDetails = (floor.rooms || []).map((room: any) => {
-      const dims = room.dimensions?.metric || room.dimensions?.imperial || "";
-      const pos = room.position || room.relativePosition || "";
-      const features = (room.features || []).join(", ");
-      let desc = `${room.name} (${dims})`;
-      if (pos) desc += ` at ${pos}`;
-      if (features) desc += ` with ${features}`;
-      return desc;
-    }).join(" → ");
-
-    floorDescriptions += `\n${floor.name}: ${floor.shape || ""} layout. `;
-    if (floor.spatialFlow) {
-      floorDescriptions += floor.spatialFlow + " ";
+    floorLayouts += `\n\n### ${floor.name} (${floor.overallWidthM || "?"}m wide × ${floor.overallDepthM || "?"}m deep, ${floor.shape || "rectangular"}):`;
+    floorLayouts += `\nShape: ${floor.shapeDescription || floor.shape || "rectangular"}`;
+    if (floor.walkthrough) {
+      floorLayouts += `\nLayout: ${floor.walkthrough}`;
     }
-    floorDescriptions += `Rooms: ${roomDetails}. `;
+    for (const room of (floor.rooms || [])) {
+      const gp = room.gridPosition || {};
+      floorLayouts += `\n- ${room.name}: ${room.widthM || "?"}m × ${room.depthM || "?"}m (${room.widthFt || ""} × ${room.depthFt || ""}), positioned at ${gp.description || room.name}. Adjacent to: ${(room.adjacentTo || []).join(", ")}. ${(room.features || []).length > 0 ? "Features: " + room.features.join(", ") + "." : ""}`;
+    }
     if (floor.stairs) {
-      floorDescriptions += `Stairs: ${floor.stairs.position || ""} ${floor.stairs.direction || ""}. `;
+      floorLayouts += `\n- Staircase at ${floor.stairs.position || "center"}, going ${floor.stairs.direction || "up"}`;
     }
   }
 
-  const entrance = analysis.entrancePosition ? `Entrance at ${analysis.entrancePosition}. ` : "";
-  const garden = analysis.garden
-    ? Object.entries(analysis.garden)
-        .filter(([_, v]) => v)
-        .map(([k, v]) => `${k} garden: ${v}`)
-        .join(". ")
-    : "";
-  const special = (analysis.specialFeatures || []).join(", ");
-  const spatialDesc = analysis.detailedSpatialDescription || "";
+  // Outdoor areas
+  let outdoorDesc = "";
+  const outdoor = analysis.outdoor || {};
+  if (outdoor.frontGarden?.exists) {
+    outdoorDesc += `\nFront: ${outdoor.frontGarden.description || "garden"} (${outdoor.frontGarden.widthM || "?"}m × ${outdoor.frontGarden.depthM || "?"}m)`;
+  }
+  if (outdoor.rearGarden?.exists) {
+    outdoorDesc += `\nRear: ${outdoor.rearGarden.description || "garden"} (${outdoor.rearGarden.widthM || "?"}m × ${outdoor.rearGarden.depthM || "?"}m)`;
+  }
 
-  return `Transform this 2D floor plan into a photorealistic isometric 3D cutaway render. This is a ${numFloors}-floor ${overallShape} ${propertyType}.
+  // The render instructions from Claude's analysis (most important part)
+  const renderInstr = analysis.renderInstructions || "";
 
-${entrance}${spatialDesc}
+  return `Create a photorealistic top-down isometric 3D architectural cutaway render of this exact floor plan. Bird's-eye view at 30-degree isometric angle, miniature architectural maquette/diorama style.
 
-Floor-by-floor layout:${floorDescriptions}
+This is a ${numFloors}-floor ${propertyType}.
+${renderInstr}
 
-${garden ? `Outdoor areas: ${garden}. ` : ""}${special ? `Special features: ${special}. ` : ""}
+PRECISE ROOM LAYOUT:${floorLayouts}
+${outdoorDesc ? `\nOUTDOOR AREAS:${outdoorDesc}` : ""}
 
-Requirements:
-- Accurately recreate the EXACT room layout, walls, doors, and windows as described above
-- Position every room precisely according to the spatial relationships described
+CRITICAL ACCURACY REQUIREMENTS:
+1. The room layout MUST match the floor plan exactly — same rooms, same positions, same proportional sizes
+2. Rooms that are labeled as adjacent MUST share walls in the render
+3. The overall floor shape MUST be correct (rectangular, L-shaped, etc.)
+4. Larger rooms must appear proportionally larger than smaller rooms
+5. Stairs must be in the correct position
+6. Garden/outdoor areas must be in the correct position (front or rear)
+
+STYLE:
 - Remove all text labels and measurements
-- Add realistic modern furniture appropriate to each room (beds in bedrooms, sofa in living room, dining table in dining room, kitchen appliances, bathroom fixtures)
-- Use photorealistic materials: warm hardwood floors, white/cream walls, marble countertops, plush rugs
-- Include warm ambient lighting from windows, ceiling lights casting soft shadows
-- Add decorative details: plants, books, artwork, throw pillows, kitchen accessories
-- Clean architectural visualization style with soft global illumination
-- Miniature diorama/dollhouse aesthetic with crisp edges and subtle depth of field
-- Bird's eye 30-degree isometric angle
-- Professional quality, high resolution
-- If multiple floors, render them stacked vertically with slight separation so interiors are visible`;
+- Warm hardwood floors, white/cream walls, soft ambient lighting
+- Appropriate furniture in each room (bed in bedroom, sofa in living room, dining table, kitchen appliances)
+- Plants, artwork, decorative details for realism
+- Soft shadows, clean architectural visualization
+- Professional quality, crisp edges
+- If multiple floors, show them stacked with slight vertical separation`;
 }
 
 // --- Image generation with OpenAI GPT-Image-1 via Responses API ---
