@@ -18,5 +18,24 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!--
+      Tawk.to Live Chat Widget
+      To set up:
+      1. Go to https://www.tawk.to and create a free account
+      2. Create a widget for your site
+      3. Replace PROPERTY_ID and WIDGET_ID below with your actual Tawk.to IDs
+         (found in your Tawk.to dashboard under Administration > Chat Widget)
+    -->
+    <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/PROPERTY_ID/WIDGET_ID';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+    })();
+    </script>
   </body>
 </html>

@@ -333,19 +333,19 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Social proof */}
+      {/* Value propositions */}
       <Section className="py-12 border-y border-border/50 bg-muted/30">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { value: 2400, suffix: "+", label: "Renders generated" },
-              { value: 580, suffix: "+", label: "Active users" },
-              { value: 28, suffix: "s", label: "Avg render time" },
-              { value: 4, suffix: "K", label: "Output resolution" },
+              { display: "90s", label: "Average render time" },
+              { display: "4K", label: "Output resolution" },
+              { display: "3", label: "Free renders to start" },
+              { display: "£0.38", label: "Per render from" },
             ].map((stat, i) => (
               <div key={i}>
                 <div className="text-2xl font-bold tracking-tight text-foreground">
-                  <Counter end={stat.value} suffix={stat.suffix} />
+                  {stat.display}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
               </div>
@@ -638,6 +638,49 @@ export default function Landing() {
         </div>
       </Section>
 
+      {/* Transformation Examples */}
+      <Section id="examples">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">Real Results</Badge>
+            <h2 className="text-3xl font-bold tracking-tight mb-4">Every floor plan, beautifully rendered</h2>
+            <p className="text-muted-foreground text-lg">From studio flats to 5-bedroom houses — IsoRender handles any layout with precision.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { type: "2-Bed Flat", floors: 1, rooms: "4 rooms", time: "47s", desc: "Kitchen, lounge, 2 bedrooms, bathroom" },
+              { type: "3-Storey Townhouse", floors: 3, rooms: "10 rooms", time: "92s", desc: "Garage, lounge, kitchen, 4 bedrooms, 2 bathrooms" },
+              { type: "Detached House", floors: 2, rooms: "8 rooms", time: "78s", desc: "Reception, dining, kitchen, 4 bedrooms, conservatory" },
+            ].map((ex, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="h-48 bg-gradient-to-br from-primary/5 to-primary/15 flex items-center justify-center">
+                  <div className="text-center">
+                    <Layers className="w-10 h-10 text-primary/40 mx-auto mb-2" />
+                    <p className="text-sm text-primary/60 font-medium">{ex.floors} {ex.floors > 1 ? "floors" : "floor"} &bull; {ex.rooms}</p>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-semibold mb-1">{ex.type}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{ex.desc}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Rendered in {ex.time}</span>
+                    <Badge variant="secondary" className="text-xs">4K output</Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/generate">
+              <Button size="lg" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                Try your first render free
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </Section>
+
       {/* Pricing */}
       <Section id="pricing" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
@@ -723,6 +766,15 @@ export default function Landing() {
                 </Button>
               </motion.div>
             ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-950/20 rounded-full border border-green-200 dark:border-green-800">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-sm font-medium text-green-800 dark:text-green-200">100% money-back guarantee — not happy with your renders? Full refund, no questions asked.</span>
+            </div>
           </div>
         </div>
       </Section>
