@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Upload,
@@ -19,36 +20,86 @@ import {
   ImageIcon,
   Sparkles,
   RefreshCw,
+  Check,
+  Gift,
+  X,
 } from "lucide-react";
 import type { Render } from "@shared/schema";
+
+const MAX_FREE_RENDERS = 3;
+
+const PRICING_PLANS = [
+  { name: "Starter", planId: "starter", price: "£7", credits: 10, features: ["10 render credits", "Standard resolution", "Floor plan upload"] },
+  { name: "Professional", planId: "professional", price: "£19", credits: 50, popular: true, features: ["50 render credits", "4K resolution", "URL extraction", "Priority processing"] },
+  { name: "Studio", planId: "agency", price: "£49", credits: 150, features: ["150 render credits", "4K resolution", "Batch rendering", "API access"] },
+];
 
 export default function Generator() {
   const [url, setUrl] = useState("");
   const [activeTab, setActiveTab] = useState("upload");
   const [dragOver, setDragOver] = useState(false);
   const [currentRenderId, setCurrentRenderId] = useState<number | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Track free renders in localStorage
+  const [freeRendersUsed, setFreeRendersUsed] = useState(() => {
+    return parseInt(localStorage.getItem("isorender_free_renders") || "0", 10);
+  });
+  const freeRendersRemaining = MAX_FREE_RENDERS - freeRendersUsed;
+
+  const trackFreeRender = () => {
+    const newCount = freeRendersUsed + 1;
+    setFreeRendersUsed(newCount);
+    localStorage.setItem("isorender_free_renders", String(newCount));
+  };
+
+  const handleBuyPlan = async (planId: string) => {
+    try {
+      const currentUrl = window.location.href.split("#")[0];
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          successUrl: `${currentUrl}#/generate?purchased=true`,
+          cancelUrl: `${currentUrl}#/generate`,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to create checkout", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Payment system unavailable", variant: "destructive" });
+    }
+  };
 
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("floorplan", file);
-      const res = await fetch(`/api/render/upload`, { method: "POST", body: formData });
+      const res = await fetch("/api/render/upload", { method: "POST", body: formData });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 402 || data.requiresPayment) {
+          throw Object.assign(new Error(data.error || "402"), { requiresPayment: true });
+        }
         throw new Error(data.error || `${res.status}`);
       }
       return res.json() as Promise<{ id: number; status: string }>;
     },
     onSuccess: (data) => {
       setCurrentRenderId(data.id);
+      trackFreeRender();
     },
     onError: (error: any) => {
-      if (error.message?.includes("402") || error.message?.includes("credits")) {
-        toast({ title: "Credits required", description: "Get render credits to continue.", variant: "destructive" });
-        window.location.hash = "#/";
+      if (error.requiresPayment || error.message?.includes("402") || error.message?.includes("requiresPayment")) {
+        setShowPaywall(true);
       } else {
         toast({ title: "Upload failed", description: "Please try again with a different image.", variant: "destructive" });
       }
@@ -61,17 +112,20 @@ export default function Generator() {
       const res = await apiRequest("POST", "/api/render/url", { url });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 402 || data.requiresPayment) {
+          throw Object.assign(new Error(data.error || "402"), { requiresPayment: true });
+        }
         throw new Error(data.error || `${res.status}`);
       }
       return res.json() as Promise<{ id: number; status: string }>;
     },
     onSuccess: (data) => {
       setCurrentRenderId(data.id);
+      trackFreeRender();
     },
     onError: (error: any) => {
-      if (error.message?.includes("402") || error.message?.includes("credits")) {
-        toast({ title: "Credits required", description: "Get render credits to continue.", variant: "destructive" });
-        window.location.hash = "#/";
+      if (error.requiresPayment || error.message?.includes("402") || error.message?.includes("requiresPayment")) {
+        setShowPaywall(true);
       } else {
         toast({ title: "Failed to process URL", description: "Please check the URL and try again.", variant: "destructive" });
       }
@@ -132,6 +186,19 @@ export default function Generator() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Paywall overlay */}
+      <AnimatePresence>
+        {showPaywall && (
+          <PaywallModal
+            onBuyPlan={handleBuyPlan}
+            onDismiss={() => {
+              setShowPaywall(false);
+              window.location.hash = "#/";
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <nav className="border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -152,6 +219,12 @@ export default function Generator() {
               <span className="font-semibold tracking-tight" data-testid="text-brand-gen">IsoRender</span>
             </div>
           </div>
+          {freeRendersRemaining > 0 && (
+            <Badge variant="secondary" className="gap-1.5 text-xs px-3 py-1">
+              <Gift className="w-3 h-3" />
+              {freeRendersRemaining} free render{freeRendersRemaining !== 1 ? "s" : ""} remaining
+            </Badge>
+          )}
         </div>
       </nav>
 
@@ -344,6 +417,106 @@ export default function Generator() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// Paywall modal overlay
+function PaywallModal({ onBuyPlan, onDismiss }: { onBuyPlan: (planId: string) => void; onDismiss: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onDismiss} />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 bg-background border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        {/* Close button */}
+        <button
+          onClick={onDismiss}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="p-8 md:p-10">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-7 h-7 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight mb-2">You've used your 3 free renders</h2>
+            <p className="text-muted-foreground text-lg">Upgrade to continue generating stunning 3D isometric renders</p>
+          </div>
+
+          {/* Pricing cards */}
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            {PRICING_PLANS.map((plan) => (
+              <div
+                key={plan.planId}
+                className={`relative rounded-xl border p-6 ${
+                  plan.popular
+                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
+                    : "bg-card border-card-border"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                    <span className="bg-[hsl(var(--accent))] text-white text-[10px] font-medium px-2.5 py-0.5 rounded-full">Best value</span>
+                  </div>
+                )}
+                <div className="mb-4">
+                  <h3 className="font-semibold mb-1">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{plan.price}</span>
+                    <span className={`text-xs ${plan.popular ? "text-primary-foreground/70" : "text-muted-foreground"}`}>one-time</span>
+                  </div>
+                  <p className={`text-xs mt-0.5 ${plan.popular ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {plan.credits} credits
+                  </p>
+                </div>
+                <ul className="space-y-2 mb-5">
+                  {plan.features.map((feature, j) => (
+                    <li key={j} className="flex items-center gap-2 text-xs">
+                      <Check className={`w-3.5 h-3.5 flex-shrink-0 ${plan.popular ? "text-primary-foreground" : "text-[hsl(var(--accent))]"}`} />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full"
+                  size="sm"
+                  variant={plan.popular ? "secondary" : "default"}
+                  onClick={() => onBuyPlan(plan.planId)}
+                >
+                  Buy {plan.name} — {plan.price}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Dismiss */}
+          <div className="text-center">
+            <button
+              onClick={onDismiss}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

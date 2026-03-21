@@ -22,7 +22,8 @@ const PLANS: Record<string, { price: number; credits: number; name: string }> = 
 };
 
 // Track free renders by IP (in-memory, resets on restart)
-const freeRenderUsed = new Set<string>();
+const freeRenderCount = new Map<string, number>();
+const MAX_FREE_RENDERS = 3;
 
 export function registerRoutes(server: Server, app: Express) {
   // --- Stripe webhook (needs raw body, registered before json parsing is fine
@@ -155,11 +156,17 @@ export function registerRoutes(server: Server, app: Express) {
         }
         storage.deductCredit(email);
       } else {
-        // Free render: allow one per IP
-        if (freeRenderUsed.has(clientIp)) {
-          return res.status(402).json({ error: "Free render used. Please purchase credits to continue." });
+        // Free renders: allow MAX_FREE_RENDERS per IP
+        const count = freeRenderCount.get(clientIp) || 0;
+        if (count >= MAX_FREE_RENDERS) {
+          return res.status(402).json({
+            error: "You've used all 3 free renders. Purchase credits to continue generating stunning 3D renders.",
+            freeRendersUsed: count,
+            creditsRemaining: 0,
+            requiresPayment: true,
+          });
         }
-        freeRenderUsed.add(clientIp);
+        freeRenderCount.set(clientIp, count + 1);
       }
 
       const render = storage.createRender({
@@ -202,10 +209,16 @@ export function registerRoutes(server: Server, app: Express) {
         }
         storage.deductCredit(email);
       } else {
-        if (freeRenderUsed.has(clientIp)) {
-          return res.status(402).json({ error: "Free render used. Please purchase credits to continue." });
+        const count = freeRenderCount.get(clientIp) || 0;
+        if (count >= MAX_FREE_RENDERS) {
+          return res.status(402).json({
+            error: "You've used all 3 free renders. Purchase credits to continue generating stunning 3D renders.",
+            freeRendersUsed: count,
+            creditsRemaining: 0,
+            requiresPayment: true,
+          });
         }
-        freeRenderUsed.add(clientIp);
+        freeRenderCount.set(clientIp, count + 1);
       }
 
       const render = storage.createRender({
@@ -529,18 +542,31 @@ async function processFromUrl(renderId: number, url: string, sourceType: string)
     let floorPlanUrl: string | null = null;
 
     if (sourceType === "rightmove") {
-      // Extract floor plan image URL from Rightmove
-      const match = html.match(/property-floorplan[^"]*\.jpeg/);
-      if (match) {
-        floorPlanUrl = `https://media.rightmove.co.uk/${match[0]}`;
-      }
-      // Fallback: look for floorplan in JSON data
-      if (!floorPlanUrl) {
-        const jsonMatch = html.match(/"floorplans"\s*:\s*\[(.*?)\]/s);
-        if (jsonMatch) {
-          const urlMatch = jsonMatch[1].match(/"url"\s*:\s*"([^"]+)"/);
-          if (urlMatch) floorPlanUrl = urlMatch[1];
+      // Method 1: Look for floorplan in JSON-LD or embedded JSON data
+      const jsonMatches = html.match(/"floorplans?"?\s*:\s*\[([^\]]+)\]/gi);
+      if (jsonMatches) {
+        for (const match of jsonMatches) {
+          const urlMatch = match.match(/"(https?:\/\/[^"]*(?:floorplan|floor-plan)[^"]*\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/i);
+          if (urlMatch) { floorPlanUrl = urlMatch[1]; break; }
         }
+      }
+
+      // Method 2: Look for floor plan image URLs in any img tags or data attributes
+      if (!floorPlanUrl) {
+        const imgMatches = html.match(/https?:\/\/media\.rightmove\.co\.uk[^"'\s]*(?:floorplan|_FLP_)[^"'\s]*/gi);
+        if (imgMatches && imgMatches.length > 0) { floorPlanUrl = imgMatches[0]; }
+      }
+
+      // Method 3: Look for any rightmove media URL with floor plan indicators
+      if (!floorPlanUrl) {
+        const mediaMatch = html.match(/https?:\/\/[^"'\s]*rightmove[^"'\s]*(?:floorplan|floor-plan|_FLP_)[^"'\s]*\.(jpg|jpeg|png|gif|webp)/gi);
+        if (mediaMatch && mediaMatch.length > 0) { floorPlanUrl = mediaMatch[0]; }
+      }
+
+      // Method 4: Original pattern as last fallback
+      if (!floorPlanUrl) {
+        const match = html.match(/property-floorplan[^"]*\.jpeg/);
+        if (match) { floorPlanUrl = `https://media.rightmove.co.uk/${match[0]}`; }
       }
     } else if (sourceType === "zoopla") {
       // Extract floor plan image URL from Zoopla
@@ -551,7 +577,14 @@ async function processFromUrl(renderId: number, url: string, sourceType: string)
     }
 
     if (!floorPlanUrl) {
-      storage.updateRender(renderId, { status: "failed" });
+      console.error(`Failed to extract floor plan from ${sourceType} URL: ${url}`);
+      storage.updateRender(renderId, {
+        status: "failed",
+        propertyDetails: JSON.stringify({
+          error: `Could not find a floor plan image on this ${sourceType} listing. The page may not contain a floor plan, or the listing format may have changed.`,
+          sourceUrl: url,
+        }),
+      });
       return;
     }
 
@@ -569,6 +602,12 @@ async function processFromUrl(renderId: number, url: string, sourceType: string)
     await processFloorPlan(renderId, imgBuffer, "image/jpeg");
   } catch (e: any) {
     console.error("URL processing failed:", e);
-    storage.updateRender(renderId, { status: "failed" });
+    storage.updateRender(renderId, {
+      status: "failed",
+      propertyDetails: JSON.stringify({
+        error: `Failed to process the property listing: ${e.message}`,
+        sourceUrl: url,
+      }),
+    });
   }
 }

@@ -227,6 +227,7 @@ export default function Landing() {
             <button onClick={() => scrollTo("features")} className="hover:text-foreground transition-colors" data-testid="link-features">Features</button>
             <button onClick={() => scrollTo("how-it-works")} className="hover:text-foreground transition-colors" data-testid="link-how-it-works">How it works</button>
             <button onClick={() => scrollTo("pricing")} className="hover:text-foreground transition-colors" data-testid="link-pricing">Pricing</button>
+            <Link href="/blog"><span className="hover:text-foreground transition-colors cursor-pointer">Blog</span></Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/generate">
@@ -788,6 +789,7 @@ export default function Landing() {
           <div className="flex items-center gap-8 text-sm text-muted-foreground">
             <button onClick={() => scrollTo("features")} className="hover:text-foreground transition-colors">Features</button>
             <button onClick={() => scrollTo("pricing")} className="hover:text-foreground transition-colors">Pricing</button>
+            <Link href="/blog"><span className="hover:text-foreground transition-colors cursor-pointer">Blog</span></Link>
             <a href="mailto:hello@isorender.com" className="hover:text-foreground transition-colors">Contact</a>
           </div>
           <div className="text-xs text-muted-foreground flex flex-col items-center md:items-end gap-1">
