@@ -422,25 +422,13 @@ async function generateRenderImage(
   floorPlanBase64: string,
   mimeType: string
 ): Promise<string> {
-  // Use a chat model (gpt-4.1) with image_generation tool
-  // Pass the floor plan as input_image reference for accurate rendering
+  // Use gpt-4.1 with image_generation tool
+  // The prompt already contains the full spatial analysis from Claude,
+  // so we rely on the text description for accuracy rather than the raw floor plan image
+  // (sending large base64 images can exceed request limits)
   const response = await openai.responses.create({
     model: "gpt-4.1",
-    input: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_image",
-            image_url: `data:${mimeType};base64,${floorPlanBase64}`,
-          },
-          {
-            type: "input_text",
-            text: prompt,
-          },
-        ],
-      },
-    ],
+    input: prompt,
     tools: [{ type: "image_generation", quality: "medium", size: "1024x1024" }],
   } as any);
 
@@ -450,6 +438,8 @@ async function generateRenderImage(
   );
 
   if (!imageOutput || !imageOutput.result) {
+    // Log the full response for debugging
+    console.error("OpenAI response output:", JSON.stringify((response as any).output?.map((o: any) => ({ type: o.type, text: o.text?.substring(0, 200) }))));
     throw new Error("No image generated — check OpenAI API response");
   }
 
