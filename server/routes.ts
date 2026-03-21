@@ -425,7 +425,7 @@ async function generateRenderImage(
   // Use a chat model (gpt-4.1) with image_generation tool
   // Pass the floor plan as input_image reference for accurate rendering
   const response = await openai.responses.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1",
     input: [
       {
         role: "user",
