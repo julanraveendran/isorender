@@ -26,4 +26,13 @@ sqlite.exec(`
     email TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    credits INTEGER NOT NULL DEFAULT 0,
+    plan TEXT,
+    stripe_customer_id TEXT,
+    created_at TEXT NOT NULL
+  );
 `);

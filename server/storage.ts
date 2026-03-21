@@ -1,6 +1,6 @@
-import { renders, waitlist, type Render, type InsertRender, type Waitlist, type InsertWaitlist } from "@shared/schema";
+import { renders, waitlist, users, type Render, type InsertRender, type Waitlist, type InsertWaitlist, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   createRender(data: InsertRender): Render;
@@ -9,6 +9,10 @@ export interface IStorage {
   getRecentRenders(limit?: number): Render[];
   addToWaitlist(data: InsertWaitlist): Waitlist;
   getWaitlistEntry(email: string): Waitlist | undefined;
+  getUserByEmail(email: string): User | undefined;
+  createUser(data: InsertUser): User;
+  updateUserCredits(email: string, credits: number): User | undefined;
+  deductCredit(email: string): User | undefined;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -34,6 +38,30 @@ export class DatabaseStorage implements IStorage {
 
   getWaitlistEntry(email: string): Waitlist | undefined {
     return db.select().from(waitlist).where(eq(waitlist.email, email)).get();
+  }
+
+  getUserByEmail(email: string): User | undefined {
+    return db.select().from(users).where(eq(users.email, email)).get();
+  }
+
+  createUser(data: InsertUser): User {
+    return db.insert(users).values(data).returning().get();
+  }
+
+  updateUserCredits(email: string, credits: number): User | undefined {
+    return db.update(users)
+      .set({ credits })
+      .where(eq(users.email, email))
+      .returning()
+      .get();
+  }
+
+  deductCredit(email: string): User | undefined {
+    return db.update(users)
+      .set({ credits: sql`${users.credits} - 1` })
+      .where(eq(users.email, email))
+      .returning()
+      .get();
   }
 }
 

@@ -33,3 +33,19 @@ export const insertWaitlistSchema = createInsertSchema(waitlist).omit({
 
 export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
 export type Waitlist = typeof waitlist.$inferSelect;
+
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  credits: integer("credits").notNull().default(0),
+  plan: text("plan"), // "starter" | "professional" | "agency"
+  stripeCustomerId: text("stripe_customer_id"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;

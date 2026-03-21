@@ -176,6 +176,30 @@ export default function Landing() {
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
 
+  const handleBuyPlan = async (planId: string) => {
+    try {
+      const apiBase = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
+      const currentUrl = window.location.href.split('#')[0];
+      const res = await fetch(`${apiBase}/api/stripe/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          successUrl: `${currentUrl}#/generate?purchased=true`,
+          cancelUrl: `${currentUrl}#/pricing`,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to create checkout", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Payment system unavailable", variant: "destructive" });
+    }
+  };
+
   async function handleWaitlist(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
@@ -627,6 +651,7 @@ export default function Landing() {
             {[
               {
                 name: "Starter",
+                planId: "starter",
                 price: "£7",
                 credits: "10",
                 features: ["10 render credits", "Standard resolution", "Floor plan upload", "PNG & JPG export"],
@@ -634,6 +659,7 @@ export default function Landing() {
               },
               {
                 name: "Professional",
+                planId: "professional",
                 price: "£19",
                 credits: "50",
                 features: ["50 render credits", "4K resolution", "URL extraction", "Priority processing", "All export formats"],
@@ -641,6 +667,7 @@ export default function Landing() {
               },
               {
                 name: "Studio",
+                planId: "agency",
                 price: "£49",
                 credits: "150",
                 features: ["150 render credits", "4K resolution", "URL extraction", "Priority processing", "Batch rendering", "API access"],
@@ -686,15 +713,14 @@ export default function Landing() {
                   ))}
                 </ul>
 
-                <Link href="/generate">
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? "secondary" : "default"}
-                    data-testid={`button-plan-${plan.name.toLowerCase()}`}
-                  >
-                    Get started
-                  </Button>
-                </Link>
+                <Button
+                  className="w-full"
+                  variant={plan.popular ? "secondary" : "default"}
+                  data-testid={`button-plan-${plan.name.toLowerCase()}`}
+                  onClick={() => handleBuyPlan(plan.planId)}
+                >
+                  Buy {plan.name} — {plan.price}
+                </Button>
               </motion.div>
             ))}
           </div>

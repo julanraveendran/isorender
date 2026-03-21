@@ -37,14 +37,22 @@ export default function Generator() {
       formData.append("floorplan", file);
       const apiBase = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
       const res = await fetch(`${apiBase}/api/render/upload`, { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `${res.status}`);
+      }
       return res.json() as Promise<{ id: number; status: string }>;
     },
     onSuccess: (data) => {
       setCurrentRenderId(data.id);
     },
-    onError: () => {
-      toast({ title: "Upload failed", description: "Please try again with a different image.", variant: "destructive" });
+    onError: (error: any) => {
+      if (error.message?.includes("402") || error.message?.includes("credits")) {
+        toast({ title: "Credits required", description: "Get render credits to continue.", variant: "destructive" });
+        window.location.hash = "#/";
+      } else {
+        toast({ title: "Upload failed", description: "Please try again with a different image.", variant: "destructive" });
+      }
     },
   });
 
@@ -52,13 +60,22 @@ export default function Generator() {
   const urlMutation = useMutation({
     mutationFn: async (url: string) => {
       const res = await apiRequest("POST", "/api/render/url", { url });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `${res.status}`);
+      }
       return res.json() as Promise<{ id: number; status: string }>;
     },
     onSuccess: (data) => {
       setCurrentRenderId(data.id);
     },
-    onError: () => {
-      toast({ title: "Failed to process URL", description: "Please check the URL and try again.", variant: "destructive" });
+    onError: (error: any) => {
+      if (error.message?.includes("402") || error.message?.includes("credits")) {
+        toast({ title: "Credits required", description: "Get render credits to continue.", variant: "destructive" });
+        window.location.hash = "#/";
+      } else {
+        toast({ title: "Failed to process URL", description: "Please check the URL and try again.", variant: "destructive" });
+      }
     },
   });
 
@@ -103,7 +120,7 @@ export default function Generator() {
   };
 
   const isProcessing = uploadMutation.isPending || urlMutation.isPending ||
-    (renderData?.status === "processing");
+    renderData?.status === "analyzing" || renderData?.status === "rendering" || renderData?.status === "processing";
   const isCompleted = renderData?.status === "completed";
   const isFailed = renderData?.status === "failed";
 
@@ -247,7 +264,7 @@ export default function Generator() {
                   <h2 className="text-xl font-semibold mb-2">Generating your 3D render</h2>
                   <p className="text-muted-foreground mb-6">Analysing floor plan and creating isometric visualisation...</p>
                   <div className="max-w-xs mx-auto">
-                    <ProcessingSteps />
+                    <ProcessingSteps status={renderData?.status} />
                   </div>
                 </div>
               )}
@@ -331,42 +348,43 @@ export default function Generator() {
   );
 }
 
-// Processing steps animation
-function ProcessingSteps() {
-  const [step, setStep] = useState(0);
+// Processing steps animation — driven by actual backend status
+function ProcessingSteps({ status }: { status?: string }) {
+  // Base step determined by actual backend status
+  let baseStep = 0;
+  if (status === "analyzing") baseStep = 0;
+  if (status === "rendering") baseStep = 2;
+  if (status === "completed") baseStep = 4;
 
+  const [subStep, setSubStep] = useState(0);
+
+  // Progress sub-step within each phase
   useEffect(() => {
-    const steps = [
-      { delay: 2000 },
-      { delay: 4000 },
-      { delay: 8000 },
-    ];
+    setSubStep(0);
+    const timer = setTimeout(() => setSubStep(1), status === "analyzing" ? 5000 : 10000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
-    const timers = steps.map((s, i) =>
-      setTimeout(() => setStep(i + 1), s.delay)
-    );
-
-    return () => timers.forEach(clearTimeout);
-  }, []);
+  const currentStep = baseStep + subStep;
 
   const steps = [
-    "Extracting floor plan details",
-    "Analysing room layout",
-    "Generating 3D visualisation",
-    "Finalising render",
+    "Analysing floor plan layout",
+    "Extracting room dimensions & positions",
+    "Generating 3D isometric render",
+    "Finalising high-resolution output",
   ];
 
   return (
     <div className="space-y-3 text-left">
       {steps.map((label, i) => (
         <div key={i} className="flex items-center gap-3">
-          {i <= step ? (
+          {i <= currentStep ? (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", damping: 15, stiffness: 200 }}
             >
-              {i < step ? (
+              {i < currentStep ? (
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
               ) : (
                 <Loader2 className="w-4 h-4 text-primary animate-spin" />
@@ -375,7 +393,7 @@ function ProcessingSteps() {
           ) : (
             <div className="w-4 h-4 rounded-full border border-border" />
           )}
-          <span className={`text-sm ${i <= step ? "text-foreground" : "text-muted-foreground"}`}>
+          <span className={`text-sm ${i <= currentStep ? "text-foreground" : "text-muted-foreground"}`}>
             {label}
           </span>
         </div>
