@@ -261,7 +261,7 @@ export function registerRoutes(server: Server, app: Express) {
   // ============================================
 
   const MESHY_API_KEY = process.env.MESHY_API_KEY;
-  const MESHY_API_URL = "https://api.meshy.ai/v2";
+  const MESHY_API_URL = "https://api.meshy.ai/openapi/v1";
 
   const photo3DTasks = new Map<string, {
     id: string;
@@ -313,7 +313,7 @@ export function registerRoutes(server: Server, app: Express) {
         }
         const filepath = path.join(uploadsDir, filename);
         fs.writeFileSync(filepath, req.file.buffer);
-        const appUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        const appUrl = (process.env.APP_URL || `https://${req.get('host')}`).replace(/\/$/, '');
         imageUrl = `${appUrl}/uploads/${filename}`;
         console.log(`Saved uploaded file to: ${filepath}, serving at: ${imageUrl}`);
       }
