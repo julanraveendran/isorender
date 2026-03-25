@@ -471,10 +471,6 @@ export default function Generator() {
                       )}
                     </div>
                   </TabsContent>
-                        Generate 3D walkthrough
-                      </Button>
-                    </form>
-                  </TabsContent>
                 </Tabs>
               </div>
             </motion.div>
