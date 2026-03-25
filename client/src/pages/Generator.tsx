@@ -40,6 +40,8 @@ export default function Generator() {
   const [dragOver, setDragOver] = useState(false);
   const [currentRenderId, setCurrentRenderId] = useState<number | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [photo3DUrl, setPhoto3DUrl] = useState("");
+  const [photo3DPrompt, setPhoto3DPrompt] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -131,6 +133,46 @@ export default function Generator() {
       }
     },
   });
+
+  // Photo-to-3D mutation
+  const photo3DMutation = useMutation({
+    mutationFn: async ({ imageUrl, prompt }: { imageUrl: string; prompt?: string }) => {
+      const res = await fetch("/api/render/photo-to-3d", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, prompt }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 402 || data.requiresPayment) {
+          throw Object.assign(new Error(data.error || "402"), { requiresPayment: true });
+        }
+        throw new Error(data.error || `${res.status}`);
+      }
+      return res.json() as Promise<{ taskId: string; status: string; renderId: number }>;
+    },
+    onSuccess: (data) => {
+      setCurrentRenderId(data.renderId);
+      trackFreeRender();
+      toast({ title: "3D generation started", description: "This usually takes 30-60 seconds. We'll notify you when it's ready!" });
+    },
+    onError: (error: any) => {
+      if (error.requiresPayment || error.message?.includes("402") || error.message?.includes("requiresPayment")) {
+        setShowPaywall(true);
+      } else {
+        toast({ title: "Failed to start 3D generation", description: error.message || "Please try again.", variant: "destructive" });
+      }
+    },
+  });
+
+  const handlePhotoTo3DSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photo3DUrl) {
+      toast({ title: "Image URL required", description: "Please provide a URL to your room photo", variant: "destructive" });
+      return;
+    }
+    photo3DMutation.mutate({ imageUrl: photo3DUrl, prompt: photo3DPrompt || undefined });
+  };
 
   // Poll render status
   const { data: renderData } = useQuery<Render>({
@@ -248,11 +290,15 @@ export default function Generator() {
                   <TabsList className="w-full mb-6">
                     <TabsTrigger value="upload" className="flex-1 gap-2" data-testid="tab-upload">
                       <Upload className="w-4 h-4" />
-                      Upload image
+                      Floor Plan
                     </TabsTrigger>
                     <TabsTrigger value="url" className="flex-1 gap-2" data-testid="tab-url">
                       <LinkIcon className="w-4 h-4" />
-                      Paste URL
+                      Rightmove/Zoopla
+                    </TabsTrigger>
+                    <TabsTrigger value="photo-3d" className="flex-1 gap-2" data-testid="tab-photo-3d">
+                      <Sparkles className="w-4 h-4" />
+                      Photo → 3D
                     </TabsTrigger>
                   </TabsList>
 
@@ -311,6 +357,47 @@ export default function Generator() {
                       <Button type="submit" className="w-full gap-2" size="lg" data-testid="button-generate-url">
                         <Sparkles className="w-4 h-4" />
                         Generate 3D render
+                      </Button>
+                    </form>
+                  </TabsContent>
+
+                  <TabsContent value="photo-3d">
+                    <form onSubmit={handlePhotoTo3DSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Room photo URL</label>
+                        <Input
+                          type="url"
+                          placeholder="https://example.com/room-photo.jpg"
+                          value={photo3DUrl}
+                          onChange={(e) => setPhoto3DUrl(e.target.value)}
+                          className="h-11"
+                          data-testid="input-photo-3d"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Upload a room photo to any cloud service and paste the link here
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Prompt (optional)</label>
+                        <Input
+                          type="text"
+                          placeholder="A modern living room with sofa and windows"
+                          value={photo3DPrompt}
+                          onChange={(e) => setPhoto3DPrompt(e.target.value)}
+                          className="h-11"
+                          data-testid="input-photo-3d-prompt"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Describe the room for better 3D generation
+                        </p>
+                      </div>
+                      <Button type="submit" className="w-full gap-2" size="lg" disabled={photo3DMutation.isPending} data-testid="button-generate-3d">
+                        {photo3DMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                        Generate 3D walkthrough
                       </Button>
                     </form>
                   </TabsContent>
