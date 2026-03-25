@@ -7,7 +7,7 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import express from "express";
-import axios from "axios";
+
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -685,22 +685,29 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
     }
 
     // Call Meshy AI API
-    const response = await axios.post(
-      `${MESHY_API_URL}/image-to-3d`,
-      {
+    const response = await fetch(`${MESHY_API_URL}/image-to-3d`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${MESHY_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
         image_url: imageUrl,
         enable_pbr: true,
-        prompt: prompt
-      },
-      {
-        headers: {
-          "Authorization": `Bearer ${MESHY_API_KEY}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+        prompt,
+      }),
+    });
 
-    const { result, task_id } = response.data;
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      return res.status(500).json({
+        error: "Failed to start 3D generation",
+        details: responseData?.message || responseData,
+      });
+    }
+
+    const { result, task_id } = responseData;
 
     if (task_id) {
       const taskData = {
@@ -732,10 +739,10 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
     return res.status(500).json({ error: "Failed to start 3D generation" });
 
   } catch (error: any) {
-    console.error("Meshy API error:", error.response?.data || error.message);
+    console.error("Meshy API error:", error.message);
     return res.status(500).json({
       error: "Failed to start 3D generation",
-      details: error.response?.data?.message || error.message
+      details: error.message,
     });
   }
 });
@@ -755,18 +762,24 @@ app.get("/api/render/photo-to-3d/:taskId", async (req, res) => {
     }
 
     // Check Meshy API for status
-    const response = await axios.get(
-      `${MESHY_API_URL}/image-to-3d/${taskId}`,
-      {
-        headers: {
-          "Authorization": `Bearer ${MESHY_API_KEY}`
-        }
-      }
-    );
+    const response = await fetch(`${MESHY_API_URL}/image-to-3d/${taskId}`, {
+      headers: {
+        "Authorization": `Bearer ${MESHY_API_KEY}`,
+      },
+    });
 
-    const meshyStatus = response.data.status;
-    const modelUrl = response.data.model_url;
-    const error = response.data.error;
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      return res.status(500).json({
+        error: "Failed to check task status",
+        details: responseData?.message || responseData,
+      });
+    }
+
+    const meshyStatus = responseData.status;
+    const modelUrl = responseData.model_url;
+    const error = responseData.error;
 
     // Update cached task
     const updatedTask = {
@@ -798,14 +811,14 @@ app.get("/api/render/photo-to-3d/:taskId", async (req, res) => {
       status: meshyStatus,
       modelUrl: modelUrl || null,
       error: error || null,
-      progress: response.data.progress || null
+      progress: responseData.progress || null
     });
 
   } catch (error: any) {
-    console.error("Status check error:", error.response?.data || error.message);
+    console.error("Status check error:", error.message);
     return res.status(500).json({
       error: "Failed to check task status",
-      details: error.response?.data?.message || error.message
+      details: error.message,
     });
   }
 });
