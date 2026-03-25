@@ -7,6 +7,8 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import express from "express";
+import path from "path";
+import fs from "fs";
 
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -669,13 +671,23 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
     // Upload image to get a URL (or use provided URL)
     let imageUrl = req.body.imageUrl as string;
     
+    // Handle file upload - save to uploads folder and use as URL
     if (!imageUrl && req.file) {
-      // For now, require external URL or handle file upload differently
-      // In production, you'd upload to S3/Cloudflare R2 and get a public URL
-      return res.status(400).json({ 
-        error: "Please provide an imageUrl. File upload requires S3 integration.",
-        note: "Upload your image to a cloud service and provide the public URL"
-      });
+      const filename = `photo3d-${Date.now()}-${Math.random().toString(36).substring(7)}.${req.file.mimetype.split('/')[1] || 'jpg'}`;
+      const uploadsDir = path.resolve(process.cwd(), "uploads");
+      
+      // Ensure uploads directory exists
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      
+      const filepath = path.join(uploadsDir, filename);
+      fs.writeFileSync(filepath, req.file.buffer);
+      
+      // Construct URL - use the request's host to build the full URL
+      const protocol = req.protocol;
+      const host = req.get('host');
+      imageUrl = `${protocol}://${host}/uploads/${filename}`;
     }
 
     const prompt = req.body.prompt || "A modern interior room with walls, floor, furniture, and realistic lighting";

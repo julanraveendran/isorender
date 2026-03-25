@@ -42,6 +42,9 @@ export default function Generator() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [photo3DUrl, setPhoto3DUrl] = useState("");
   const [photo3DPrompt, setPhoto3DPrompt] = useState("");
+  const [photo3DFile, setPhoto3DFile] = useState<File | null>(null);
+  const [photo3DPreview, setPhoto3DPreview] = useState<string>("");
+  const photo3DFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -134,9 +137,29 @@ export default function Generator() {
     },
   });
 
-  // Photo-to-3D mutation
+  // Photo-to-3D mutation (handles both file upload and URL)
   const photo3DMutation = useMutation({
-    mutationFn: async ({ imageUrl, prompt }: { imageUrl: string; prompt?: string }) => {
+    mutationFn: async ({ imageUrl, prompt, file }: { imageUrl?: string; prompt?: string; file?: File }) => {
+      // If we have a file, use FormData
+      if (file) {
+        const formData = new FormData();
+        formData.append("image", file);
+        if (prompt) formData.append("prompt", prompt);
+        const res = await fetch("/api/render/photo-to-3d", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 402 || data.requiresPayment) {
+            throw Object.assign(new Error(data.error || "402"), { requiresPayment: true });
+          }
+          throw new Error(data.error || `${res.status}`);
+        }
+        return res.json() as Promise<{ taskId: string; status: string; renderId: number }>;
+      }
+      
+      // Otherwise use URL
       const res = await fetch("/api/render/photo-to-3d", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,13 +188,28 @@ export default function Generator() {
     },
   });
 
-  const handlePhotoTo3DSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!photo3DUrl) {
-      toast({ title: "Image URL required", description: "Please provide a URL to your room photo", variant: "destructive" });
+  const handlePhoto3DFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file.", variant: "destructive" });
       return;
     }
-    photo3DMutation.mutate({ imageUrl: photo3DUrl, prompt: photo3DPrompt || undefined });
+    setPhoto3DFile(file);
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setPhoto3DPreview(previewUrl);
+  };
+
+  const handlePhotoTo3DSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photo3DFile && !photo3DUrl) {
+      toast({ title: "Photo required", description: "Please upload a room photo", variant: "destructive" });
+      return;
+    }
+    if (photo3DFile) {
+      photo3DMutation.mutate({ prompt: photo3DPrompt || undefined, file: photo3DFile });
+    } else {
+      photo3DMutation.mutate({ imageUrl: photo3DUrl, prompt: photo3DPrompt || undefined });
+    }
   };
 
   // Poll render status
@@ -362,41 +400,77 @@ export default function Generator() {
                   </TabsContent>
 
                   <TabsContent value="photo-3d">
-                    <form onSubmit={handlePhotoTo3DSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Room photo URL</label>
-                        <Input
-                          type="url"
-                          placeholder="https://example.com/room-photo.jpg"
-                          value={photo3DUrl}
-                          onChange={(e) => setPhoto3DUrl(e.target.value)}
-                          className="h-11"
-                          data-testid="input-photo-3d"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Upload a room photo to any cloud service and paste the link here
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Prompt (optional)</label>
-                        <Input
-                          type="text"
-                          placeholder="A modern living room with sofa and windows"
-                          value={photo3DPrompt}
-                          onChange={(e) => setPhoto3DPrompt(e.target.value)}
-                          className="h-11"
-                          data-testid="input-photo-3d-prompt"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Describe the room for better 3D generation
-                        </p>
-                      </div>
-                      <Button type="submit" className="w-full gap-2" size="lg" disabled={photo3DMutation.isPending} data-testid="button-generate-3d">
-                        {photo3DMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-4 h-4" />
-                        )}
+                    <div
+                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                        dragOver
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        const file = e.dataTransfer.files[0];
+                        if (file && file.type.startsWith("image/")) {
+                          handlePhoto3DFile(file);
+                        }
+                      }}
+                      onClick={() => photo3DFileInputRef.current?.click()}
+                    >
+                      <input
+                        ref={photo3DFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePhoto3DFile(file);
+                        }}
+                      />
+                      {photo3DPreview ? (
+                        <img src={photo3DPreview} alt="Preview" className="max-h-48 mx-auto rounded-lg mb-4" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
+                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <p className="font-medium mb-1">
+                        {photo3DPreview ? "Click to change photo" : "Drop a room photo here"}
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {photo3DPreview ? "" : "or click to browse. JPG, PNG up to 10MB."}
+                      </p>
+                      {photo3DPreview && (
+                        <div className="space-y-3">
+                          <Input
+                            type="text"
+                            placeholder="A modern living room with sofa and windows (optional)"
+                            value={photo3DPrompt}
+                            onChange={(e) => setPhoto3DPrompt(e.target.value)}
+                            className="h-10 text-sm"
+                          />
+                          <Button 
+                            type="button"
+                            className="w-full gap-2" 
+                            size="lg" 
+                            disabled={photo3DMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePhotoTo3DSubmit(new Event('submit') as any);
+                            }}
+                          >
+                            {photo3DMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-4 h-4" />
+                            )}
+                            Generate 3D walkthrough
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
                         Generate 3D walkthrough
                       </Button>
                     </form>

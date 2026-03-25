@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "last30days": {
+      "version": "1.0.0",
+      "installedAt": 1774302062825
+    },
+    "senior-architect": {
+      "version": "2.1.1",
+      "installedAt": 1774302783535
+    },
+    "marketing-strategy-pmm": {
+      "version": "2.1.1",
+      "installedAt": 1774443543554
+    }
+  }
+}

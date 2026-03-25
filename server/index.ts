@@ -31,6 +31,15 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Serve uploaded files
+import path from "path";
+import fs from "fs";
+const uploadsPath = path.resolve(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use("/uploads", express.static(uploadsPath));
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
