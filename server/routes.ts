@@ -7,6 +7,7 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import Stripe from "stripe";
 import express from "express";
+import axios from "axios";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -611,3 +612,200 @@ async function processFromUrl(renderId: number, url: string, sourceType: string)
     });
   }
 }
+
+// ============================================
+// Meshy AI Photo-to-3D Walkthrough Routes
+// ============================================
+
+const MESHY_API_KEY = process.env.MESHY_API_KEY;
+const MESHY_API_URL = "https://api.meshy.ai/v2";
+
+// In-memory task storage for 3D generation
+const photo3DTasks = new Map<string, {
+  id: string;
+  status: string;
+  imageUrl: string;
+  prompt?: string;
+  modelUrl?: string;
+  error?: string;
+  createdAt: string;
+}>();
+
+// POST /api/render/photo-to-3d - Submit image for 3D generation
+app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => {
+  try {
+    // Credit check
+    const email = req.body.email as string | undefined;
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+
+    let creditDeducted = false;
+
+    if (email) {
+      const user = storage.getUserByEmail(email);
+      if (!user || user.credits <= 0) {
+        return res.status(402).json({ error: "No credits remaining. Please purchase a plan." });
+      }
+      storage.deductCredit(email);
+      creditDeducted = true;
+    } else {
+      // Free renders: allow MAX_FREE_RENDERS per IP
+      const count = freeRenderCount.get(clientIp) || 0;
+      if (count >= MAX_FREE_RENDERS) {
+        return res.status(402).json({
+          error: "You've used all 3 free renders. Purchase credits to continue.",
+          freeRendersUsed: count,
+          creditsRemaining: 0,
+          requiresPayment: true,
+        });
+      }
+      freeRenderCount.set(clientIp, count + 1);
+      creditDeducted = true;
+    }
+
+    if (!req.file && !req.body.imageUrl) {
+      return res.status(400).json({ error: "Image file or imageUrl required" });
+    }
+
+    // Upload image to get a URL (or use provided URL)
+    let imageUrl = req.body.imageUrl as string;
+    
+    if (!imageUrl && req.file) {
+      // For now, require external URL or handle file upload differently
+      // In production, you'd upload to S3/Cloudflare R2 and get a public URL
+      return res.status(400).json({ 
+        error: "Please provide an imageUrl. File upload requires S3 integration.",
+        note: "Upload your image to a cloud service and provide the public URL"
+      });
+    }
+
+    const prompt = req.body.prompt || "A modern interior room with walls, floor, furniture, and realistic lighting";
+
+    if (!MESHY_API_KEY) {
+      return res.status(500).json({ error: "MESHY_API_KEY not configured" });
+    }
+
+    // Call Meshy AI API
+    const response = await axios.post(
+      `${MESHY_API_URL}/image-to-3d`,
+      {
+        image_url: imageUrl,
+        enable_pbr: true,
+        prompt: prompt
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${MESHY_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    const { result, task_id } = response.data;
+
+    if (task_id) {
+      const taskData = {
+        id: task_id,
+        status: result === "SUCCEEDED" ? "succeeded" : "processing",
+        imageUrl,
+        prompt,
+        createdAt: new Date().toISOString()
+      };
+      photo3DTasks.set(task_id, taskData);
+
+      // Create render record
+      const render = storage.createRender({
+        sourceType: "photo-to-3d",
+        status: "processing",
+        propertyDetails: JSON.stringify({ taskId: task_id, prompt }),
+        createdAt: new Date().toISOString(),
+      });
+
+      return res.json({
+        success: true,
+        taskId: task_id,
+        status: "processing",
+        renderId: render.id,
+        message: "3D walkthrough generation started"
+      });
+    }
+
+    return res.status(500).json({ error: "Failed to start 3D generation" });
+
+  } catch (error: any) {
+    console.error("Meshy API error:", error.response?.data || error.message);
+    return res.status(500).json({
+      error: "Failed to start 3D generation",
+      details: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// GET /api/render/photo-to-3d/:taskId - Check generation status
+app.get("/api/render/photo-to-3d/:taskId", async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const cachedTask = photo3DTasks.get(taskId);
+
+    if (!cachedTask) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    if (!MESHY_API_KEY) {
+      return res.status(500).json({ error: "MESHY_API_KEY not configured" });
+    }
+
+    // Check Meshy API for status
+    const response = await axios.get(
+      `${MESHY_API_URL}/image-to-3d/${taskId}`,
+      {
+        headers: {
+          "Authorization": `Bearer ${MESHY_API_KEY}`
+        }
+      }
+    );
+
+    const meshyStatus = response.data.status;
+    const modelUrl = response.data.model_url;
+    const error = response.data.error;
+
+    // Update cached task
+    const updatedTask = {
+      ...cachedTask,
+      status: meshyStatus === "SUCCEEDED" ? "succeeded" : 
+              meshyStatus === "FAILED" ? "failed" : "processing",
+      modelUrl: modelUrl || undefined,
+      error: error || undefined
+    };
+    photo3DTasks.set(taskId, updatedTask);
+
+    // Update render in storage
+    const renders = storage.getRenders();
+    const render = renders.find(r => 
+      r.propertyDetails && 
+      JSON.parse(r.propertyDetails).taskId === taskId
+    );
+    
+    if (render) {
+      storage.updateRender(render.id, {
+        status: meshyStatus === "SUCCEEDED" ? "completed" : 
+                meshyStatus === "FAILED" ? "failed" : "processing",
+        renderUrl: modelUrl || undefined
+      });
+    }
+
+    return res.json({
+      taskId,
+      status: meshyStatus,
+      modelUrl: modelUrl || null,
+      error: error || null,
+      progress: response.data.progress || null
+    });
+
+  } catch (error: any) {
+    console.error("Status check error:", error.response?.data || error.message);
+    return res.status(500).json({
+      error: "Failed to check task status",
+      details: error.response?.data?.message || error.message
+    });
+  }
+});
