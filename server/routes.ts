@@ -665,7 +665,8 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
     }
 
     if (!req.file && !req.body.imageUrl) {
-      return res.status(400).json({ error: "Image file or imageUrl required" });
+      console.error("No file uploaded and no imageUrl provided");
+      return res.status(400).json({ error: "Please upload an image file or provide an image URL" });
     }
 
     // Upload image to get a URL (or use provided URL)
@@ -673,7 +674,8 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
     
     // Handle file upload - save to uploads folder and use as URL
     if (!imageUrl && req.file) {
-      const filename = `photo3d-${Date.now()}-${Math.random().toString(36).substring(7)}.${req.file.mimetype.split('/')[1] || 'jpg'}`;
+      const ext = req.file.mimetype.split('/')[1] || 'jpg';
+      const filename = `photo3d-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
       const uploadsDir = path.resolve(process.cwd(), "uploads");
       
       // Ensure uploads directory exists
@@ -684,16 +686,20 @@ app.post("/api/render/photo-to-3d", upload.single("image"), async (req, res) => 
       const filepath = path.join(uploadsDir, filename);
       fs.writeFileSync(filepath, req.file.buffer);
       
-      // Construct URL - use the request's host to build the full URL
-      const protocol = req.protocol;
-      const host = req.get('host');
-      imageUrl = `${protocol}://${host}/uploads/${filename}`;
+      // For Meshy AI, we need a public URL. 
+      // In production, use S3/R2. For now, construct a best-effort URL
+      // The Railway app URL needs to be set in environment variables
+      const appUrl = process.env.APP_URL || `https://${req.get('host')}`;
+      imageUrl = `${appUrl}/uploads/${filename}`;
+      
+      console.log(`Saved uploaded file to: ${filepath}, serving at: ${imageUrl}`);
     }
 
     const prompt = req.body.prompt || "A modern interior room with walls, floor, furniture, and realistic lighting";
 
     if (!MESHY_API_KEY) {
-      return res.status(500).json({ error: "MESHY_API_KEY not configured" });
+      console.error("MESHY_API_KEY not configured!");
+      return res.status(500).json({ error: "MESHY_API_KEY not configured. Please contact support." });
     }
 
     // Call Meshy AI API
